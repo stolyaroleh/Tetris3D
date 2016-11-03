@@ -99,7 +99,7 @@ public class Board3D extends CvZBuf {
                     height = (float) (offset + Cell.sizeX * (z - 0.5));
                     width = (float) (offset + Cell.sizeX * (x + 0.5));
                     depth = (float) (offset + Cell.sizeX * (d + 0.5));
-                    if (!gameBoards[d].isEmpty(new Pair(x, zDim + 4 - z))) {
+                    if (!gameBoards[d].isEmpty(new Pos(x, zDim + 4 - z))) {
                         Cell.addVertexDataToObj(indexV, width, depth, height, getObj());
                         Cell.addPolyData(indexV, getObj());
                         //calculate shading

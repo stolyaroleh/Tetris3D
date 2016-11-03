@@ -1,6 +1,6 @@
 // Obj3D.java: A 3D object and its 2D representation.
 // Uses: Point2D (Section 1.5), Point3D (Section 3.9),
-//       Polygon3D, Input (Section 6.3).
+//       Polygon3D.
 
 // Copied from Appendix C (discussed in Section 6.3) of
 //    Ammeraal, L. (1998) Computer Graphics for Java Programmers,
@@ -20,16 +20,6 @@ class Obj3D {
     private Point2D[] vScr; // Screen coordinates
     private Vector polyList = new Vector(); // Polygon3D objects
     private String fName = ""; // File name
-
-    boolean read(String fName) {
-        Input inp = new Input(fName);
-        if (inp.fails())
-            return failing();
-        this.fName = fName;
-        xMin = yMin = zMin = +1e30F;
-        xMax = yMax = zMax = -1e30F;
-        return readObject(inp); // Read from inp into obj
-    }
 
     Vector getPolyList() {
         return polyList;
@@ -62,61 +52,6 @@ class Obj3D {
     private boolean failing() {
         Toolkit.getDefaultToolkit().beep();
         return false;
-    }
-
-    private boolean readObject(Input inp) {
-        for (; ; ) {
-            int i = inp.readInt();
-            if (inp.fails()) {
-                inp.clear();
-                break;
-            }
-            if (i < 0) {
-                System.out.println("Negative vertex number in first part of input file");
-                return failing();
-            }
-            w.ensureCapacity(i + 1);
-            float x = inp.readFloat(), y = inp.readFloat(), z = inp.readFloat();
-            addVertex(i, x, y, z);
-        }
-        shiftToOrigin(); // Origin in center of object.
-        char ch;
-        int count = 0;
-        do // Skip the line "Faces:"
-        {
-            ch = inp.readChar();
-            count++;
-        } while (!inp.eof() && ch != '\n');
-        if (count < 6 || count > 8) {
-            System.out.println("Invalid input file");
-            return failing();
-        }
-        // Build polygon list:
-        for (; ; ) {
-            Vector vnrs = new Vector();
-            for (; ; ) {
-                int i = inp.readInt();
-                if (inp.fails()) {
-                    inp.clear();
-                    break;
-                }
-                int absi = Math.abs(i);
-                if (i == 0 || absi >= w.size() || w.elementAt(absi) == null) {
-                    System.out.println("Invalid vertex number: " + absi + " must be defined, nonzero and less than "
-                            + w.size());
-                    return failing();
-                }
-                vnrs.addElement(new Integer(i));
-            }
-            ch = inp.readChar();
-            if (ch != '.' && ch != '#')
-                break;
-            // Ignore input lines with only one vertex number:
-            if (vnrs.size() >= 2)
-                polyList.addElement(new Polygon3D(vnrs));
-        }
-        inp.close();
-        return true;
     }
 
     public void addVertex(int i, float x, float y, float z) {

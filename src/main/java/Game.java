@@ -1,18 +1,18 @@
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static java.awt.event.KeyEvent.VK_W;
+
 public class Game {
-    public static int cellSize = 20;
-    public static boolean playing = false, fastforward = false, optionsAreOpen = false, pause = false;
-    public static int gameX = 10;
-    public static int gameY = 3;
-    public static int gameZ = 20;
+    static int cellSize = 20;
+    static int gameX = 10;
+    static int gameY = 3;
+    static int gameZ = 20;
+    private static boolean playing = false, fastForward = false, showingOptions = false, paused = false;
 
     private static int removedLines = 0, currentLevelRemovedLines = 0;
     private static int score = 0;
@@ -20,9 +20,8 @@ public class Game {
     private static JFrame frame, options;
     private static Board3D board3d;
     private static Obj3D mesh;
-    private static JButton quitButton, pauseButton, optionsButton;
+    private static JButton pauseButton;
     private static Font labelFont = new Font("Sans Serif", Font.BOLD, 14);
-    private static Font buttonFont = new Font("Sans Serif", Font.PLAIN, 22);
     private static JLabel levelLabel, scoreLabel, lineLabel;
     private static Board board, smallBoard;
     private static Random random = new Random();
@@ -37,11 +36,11 @@ public class Game {
         //moving backward/forward
         @Override
         public void keyPressed(KeyEvent event) {
-            if (!pause) {
-                if (event.getKeyCode() == KeyEvent.VK_UP) {
-                    int nextBoardIndex = (Board3D.currentBoardIndex + 1 + gameY) % gameY;
+            if (!paused) {
+                if (event.getKeyCode() == VK_W || event.getKeyCode() == KeyEvent.VK_S) {
+                    int nextBoardIndex = (Board3D.currentBoardIndex + (event.getKeyCode() == VK_W ? 1 : -1) + gameY) % gameY;
                     board3d.getGameBoard(nextBoardIndex).currentPos = board.currentPos;
-                    if (board3d.getGameBoard(nextBoardIndex).tryToReplaceCurrent(current.getType())) {
+                    if (board3d.getGameBoard(nextBoardIndex).tryToReplaceCurrent(current.id)) {
                         board.deleteFragment(board.currentPos.x, board.currentPos.y);
                         board.current = null;
                         board.falling = false;
@@ -57,39 +56,20 @@ public class Game {
                         board3d.getGameBoard(nextBoardIndex).currentPos = null;
                     }
                 }
-                if (event.getKeyCode() == KeyEvent.VK_DOWN) {
-                    int nextBoardIndex = (Board3D.currentBoardIndex - 1 + gameY) % gameY;
-                    board3d.getGameBoard(nextBoardIndex).currentPos = board.currentPos;
-                    if (board3d.getGameBoard(nextBoardIndex).tryToReplaceCurrent(current.getType())) {
-                        board.deleteFragment(board.currentPos.x, board.currentPos.y);
-                        board.current = null;
-                        board.falling = false;
-                        frame.remove(board);
-                        board = board3d.getGameBoard(nextBoardIndex);
-                        frame.add(board);
-                        board.setBoardSizeAndMoveTo(40, 40);
-                        board.falling = true;
-                        Board3D.currentBoardIndex = nextBoardIndex;
-                        board3d.updateMesh();
-                        board3d.repaint();
-                    } else {
-                        board3d.getGameBoard(nextBoardIndex).currentPos = null;
-                    }
-                }
-                if (event.getKeyCode() == KeyEvent.VK_LEFT) {
+                if (event.getKeyCode() == KeyEvent.VK_A) {
                     board.move(-1);
                     board3d.updateMesh();
                     board3d.repaint();
                 }
 
-                if (event.getKeyCode() == KeyEvent.VK_RIGHT) {
+                if (event.getKeyCode() == KeyEvent.VK_D) {
                     board.move(1);
                     board3d.updateMesh();
                     board3d.repaint();
                 }
                 if (event.getKeyCode() == KeyEvent.VK_SPACE) {
-                    if (playing && !fastforward) {
-                        fastforward = true;
+                    if (playing && !fastForward) {
+                        fastForward = true;
                         gameTimer.setDelay(gameTimer.getDelay() / 20);
                     }
                 }
@@ -107,17 +87,17 @@ public class Game {
     private static MenuItem eyeUp, eyeDown, eyeLeft, eyeRight, incrDist, decrDist;
 
     static {
-        fragmentsInGame = new ArrayList<Integer>();
+        fragmentsInGame = new ArrayList<>();
         for (int i = 1; i < 8; i++)
             fragmentsInGame.add(i);
     }
 
-    public static void initialize() {
-        buttonFont = new Font("Sans Serif", Font.PLAIN, cellSize - 7);
+    private static void initialize() {
+        Font buttonFont = new Font("Sans Serif", Font.PLAIN, cellSize - 7);
         frame = new JFrame("Tetris 3D");
-        quitButton = new JButton("QUIT");
+        JButton quitButton = new JButton("QUIT");
         pauseButton = new JButton("PAUSE");
-        optionsButton = new JButton("OPTIONS");
+        JButton optionsButton = new JButton("OPTIONS");
         levelLabel = new JLabel("Level: " + level);
         scoreLabel = new JLabel("Score: " + score);
         lineLabel = new JLabel("Lines: " + removedLines);
@@ -143,23 +123,17 @@ public class Game {
         quitButton.setBounds(80 + board.getBoardWidth() * cellSize, board.getBoardHeight() * cellSize + 40 - 2 * cellSize, 5 * cellSize, 2 * cellSize);
         quitButton.setBackground(new Color(230, 230, 230));
         quitButton.setFont(buttonFont);
-        quitButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                System.exit(0);
-            }
-        });
+        quitButton.addActionListener(e -> System.exit(0));
 
         optionsButton.setBounds(80 + board.getBoardWidth() * cellSize, board.getBoardHeight() * cellSize + 30 - 4
                 * cellSize, 5 * cellSize, 2 * cellSize);
         optionsButton.setBackground(new Color(230, 230, 230));
         optionsButton.setFont(buttonFont);
-        optionsButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (options == null || !options.isVisible()) {
-                    showOptions();
-                } else {
-                    options.dispatchEvent(new WindowEvent(options, WindowEvent.WINDOW_CLOSING));
-                }
+        optionsButton.addActionListener(e -> {
+            if (options == null || !options.isVisible()) {
+                showOptions();
+            } else {
+                options.dispatchEvent(new WindowEvent(options, WindowEvent.WINDOW_CLOSING));
             }
         });
 
@@ -194,12 +168,11 @@ public class Game {
                     board3d.repaint();
                 }
                 if (SwingUtilities.isMiddleMouseButton(event)) {
-                    if (playing && !fastforward) {
-                        fastforward = true;
+                    if (playing && !fastForward) {
+                        fastForward = true;
                         gameTimer.setDelay(gameTimer.getDelay() / 20);
                     }
                 }
-                // System.out.println("Mouse clicked");
             }
 
             @Override
@@ -218,32 +191,27 @@ public class Game {
             public void mouseReleased(MouseEvent event) {
             }
         });
-        frame.addMouseWheelListener(new MouseWheelListener() {
-
-            @Override
-            public void mouseWheelMoved(MouseWheelEvent event) {
-                if (event.getPreciseWheelRotation() > 0) {
-                    if (board.current.maxOrientation == 1) {
-                        if (board.current.orientation == 0)
-                            board.rotateR();
-                        else
-                            board.rotateL();
-                    } else
+        frame.addMouseWheelListener(event -> {
+            if (event.getPreciseWheelRotation() > 0) {
+                if (board.current.shape.maxOrientation == 1) {
+                    if (board.current.orientation == 0)
                         board.rotateR();
-                    board3d.updateMesh();
-                    board3d.repaint();
-                } else if (event.getPreciseWheelRotation() < 0) {
-                    if (board.current.maxOrientation == 1) {
-                        if (board.current.orientation == 0)
-                            board.rotateR();
-                        else
-                            board.rotateL();
-                    } else
+                    else
                         board.rotateL();
-                    board3d.updateMesh();
-                    board3d.repaint();
-                }
-
+                } else
+                    board.rotateR();
+                board3d.updateMesh();
+                board3d.repaint();
+            } else if (event.getPreciseWheelRotation() < 0) {
+                if (board.current.shape.maxOrientation == 1) {
+                    if (board.current.orientation == 0)
+                        board.rotateR();
+                    else
+                        board.rotateL();
+                } else
+                    board.rotateL();
+                board3d.updateMesh();
+                board3d.repaint();
             }
 
         });
@@ -259,7 +227,7 @@ public class Game {
 
             @Override
             public void windowClosing(WindowEvent e) {
-                if (!optionsAreOpen)
+                if (!showingOptions)
                     System.exit(0);
             }
 
@@ -318,7 +286,7 @@ public class Game {
                 * cellSize, 5 * cellSize, 2 * cellSize);
         int verticalSize = board.getBoardHeight() * cellSize + 140;
         frame.setSize((board.getBoardWidth() + smallBoard.getBoardWidth()) * cellSize + 135, verticalSize);
-        optionsAreOpen = false;
+        showingOptions = false;
         board.update();
         smallBoard.update();
         gameTimer = new Timer(800, new timerListener());
@@ -337,10 +305,10 @@ public class Game {
             public void mouseEntered(MouseEvent event) {
                 if (playing) {
                     pauseButton.setVisible(true);
-                    pause = true;
+                    paused = true;
                     try {
                         gameTimer.stop();
-                    } catch (Exception e) {
+                    } catch (Exception ignored) {
                     }
                 }
             }
@@ -349,10 +317,10 @@ public class Game {
             public void mouseExited(MouseEvent event) {
                 if (playing) {
                     pauseButton.setVisible(false);
-                    pause = false;
+                    paused = false;
                     try {
                         gameTimer.start();
-                    } catch (Exception e) {
+                    } catch (Exception ignored) {
                     }
                 }
             }
@@ -371,11 +339,11 @@ public class Game {
 
     public static void main(String[] args) {
         initialize();
-        mesh.vp(board3d, -1.5f, 0, 0);        //setting the initial viewing angle.
+        mesh.vp(board3d, -1.5f, 0, 0); // setting the initial viewing angle.
     }
 
     private static void showOptions() {
-        optionsAreOpen = true;
+        showingOptions = true;
         sliderSize = new JSlider(JSlider.HORIZONTAL, 15, 30, cellSize);
         sliderM = new JSlider(JSlider.HORIZONTAL, 1, 10, M);
         sliderN = new JSlider(JSlider.HORIZONTAL, 20, 50, N);
@@ -396,76 +364,49 @@ public class Game {
         JLabel labelGameY = new JLabel("Depth: " + gameY);
         sliders.add(labelM);
         sliders.add(sliderM);
-        sliderM.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent event) {
-                M = sliderM.getValue();
-                labelM.setText("Scoring factor: " + M);
-            }
-
+        sliderM.addChangeListener(event -> {
+            M = sliderM.getValue();
+            labelM.setText("Scoring factor: " + M);
         });
         sliders.add(labelN);
         sliders.add(sliderN);
-        sliderN.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent event) {
-                N = sliderN.getValue();
-                labelN.setText("Rows needed to go up a level: " + N);
-            }
+        sliderN.addChangeListener(event -> {
+            N = sliderN.getValue();
+            labelN.setText("Rows needed to go up a level: " + N);
         });
         sliders.add(labelS);
         sliders.add(sliderS);
-        sliderS.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent event) {
-                S = sliderS.getValue() / 10.0;
-                labelS.setText("Speed factor: " + S);
-            }
-
+        sliderS.addChangeListener(event -> {
+            S = sliderS.getValue() / 10.0;
+            labelS.setText("Speed factor: " + S);
         });
 
         sliders.add(labelSize);
         sliders.add(sliderSize);
-        sliderSize.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent event) {
-                cellSize = sliderSize.getValue();
-                labelSize.setText("Size: " + cellSize);
-            }
-
+        sliderSize.addChangeListener(event -> {
+            cellSize = sliderSize.getValue();
+            labelSize.setText("Size: " + cellSize);
         });
 
         sliders.add(labelGameX);
         sliders.add(sliderGameX);
-        sliderGameX.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent event) {
-                gameX = sliderGameX.getValue();
-                labelGameX.setText("Columns: " + gameX);
-            }
-
+        sliderGameX.addChangeListener(event -> {
+            gameX = sliderGameX.getValue();
+            labelGameX.setText("Columns: " + gameX);
         });
 
         sliders.add(labelGameZ);
         sliders.add(sliderGameZ);
-        sliderGameZ.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent event) {
-                gameZ = sliderGameZ.getValue();
-                labelGameZ.setText("Rows: " + gameZ);
-            }
-
+        sliderGameZ.addChangeListener(event -> {
+            gameZ = sliderGameZ.getValue();
+            labelGameZ.setText("Rows: " + gameZ);
         });
 
         sliders.add(labelGameY);
         sliders.add(sliderGameY);
-        sliderGameY.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent event) {
-                gameY = sliderGameY.getValue();
-                labelGameY.setText("Depth: " + gameY);
-            }
-
+        sliderGameY.addChangeListener(event -> {
+            gameY = sliderGameY.getValue();
+            labelGameY.setText("Depth: " + gameY);
         });
 
         JLabel fragmentsLabel = new JLabel("Additional shapes: ");
@@ -577,18 +518,15 @@ public class Game {
     private static JCheckBox createCheckboxForFragment(int fragmentIndex, int x, int y) {
         JCheckBox checkbox = new JCheckBox("");
         checkbox.setBounds(x, y, 17, 15);
-        if (fragmentsInGame.contains(new Integer(fragmentIndex)))
+        if (fragmentsInGame.contains(fragmentIndex))
             checkbox.setSelected(true);
         else
             checkbox.setSelected(false);
-        checkbox.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent arg0) {
-                if (checkbox.isSelected()) {
-                    fragmentsInGame.add(fragmentIndex);
-                } else {
-                    fragmentsInGame.remove(new Integer(fragmentIndex));
-                }
+        checkbox.addActionListener(arg0 -> {
+            if (checkbox.isSelected()) {
+                fragmentsInGame.add(fragmentIndex);
+            } else {
+                fragmentsInGame.remove(new Integer(fragmentIndex));
             }
         });
         return checkbox;
@@ -602,6 +540,12 @@ public class Game {
         return board;
     }
 
+    private static void viewpoint(float dTheta, float dPhi, float fRho) {
+        Obj3D obj = board3d.getObj();
+        if (obj == null || !obj.vp(board3d, dTheta, dPhi, fRho))
+            Toolkit.getDefaultToolkit().beep();
+    }
+
     private static class timerListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent arg0) {
@@ -612,9 +556,9 @@ public class Game {
                 System.exit(0);
                 return;
             }
-            if (!board.falling && fastforward) {
+            if (!board.falling && fastForward) {
                 gameTimer.setDelay(gameTimer.getDelay() * 20);
-                fastforward = false;
+                fastForward = false;
             }
             if (!board.falling)
                 generateFragment();
@@ -622,29 +566,19 @@ public class Game {
             int removed = board.removeFullLines(board.dimY - 1);
             if (removed != 0) {
                 currentLevelRemovedLines += removed;
-                if (removed != 0) {
-                    currentLevelRemovedLines += removed;
-                    if (currentLevelRemovedLines >= N) {
-                        level++;
-                        levelLabel.setText("Level: " + level);
-                        gameTimer.setDelay((int) (gameTimer.getDelay() * (1 / (1 + level * S))));
-                        currentLevelRemovedLines -= N;
-                    }
-                    removedLines += removed;
-                    score += (int) ((10 * level * M) * (Math.pow(1.5, removed)));
-                    lineLabel.setText("Lines: " + removedLines);
-                    scoreLabel.setText("Score: " + score);
+                currentLevelRemovedLines += removed;
+                if (currentLevelRemovedLines >= N) {
+                    level++;
+                    levelLabel.setText("Level: " + level);
+                    gameTimer.setDelay((int) (gameTimer.getDelay() * (1 / (1 + level * S))));
+                    currentLevelRemovedLines -= N;
                 }
+                removedLines += removed;
+                score += (int) ((10 * level * M) * (Math.pow(1.5, removed)));
+                lineLabel.setText("Lines: " + removedLines);
+                scoreLabel.setText("Score: " + score);
             }
-
         }
-    }
-
-    static void vp(float dTheta, float dPhi, float fRho) // Viewpoint
-    {
-        Obj3D obj = board3d.getObj();
-        if (obj == null || !obj.vp(board3d, dTheta, dPhi, fRho))
-            Toolkit.getDefaultToolkit().beep();
     }
 
     private static class MenuCommands implements ActionListener {
@@ -652,17 +586,17 @@ public class Game {
             if (ae.getSource() instanceof MenuItem) {
                 MenuItem mi = (MenuItem) ae.getSource();
                 if (mi == eyeDown)
-                    vp(0, .1F, 1);
+                    viewpoint(0, .1F, 1);
                 else if (mi == eyeUp)
-                    vp(0, -.1F, 1);
+                    viewpoint(0, -.1F, 1);
                 else if (mi == eyeLeft)
-                    vp(-.1F, 0, 1);
+                    viewpoint(-.1F, 0, 1);
                 else if (mi == eyeRight)
-                    vp(.1F, 0, 1);
+                    viewpoint(.1F, 0, 1);
                 else if (mi == incrDist)
-                    vp(0, 0, 2);
+                    viewpoint(0, 0, 2);
                 else if (mi == decrDist)
-                    vp(0, 0, .5F);
+                    viewpoint(0, 0, .5F);
             }
         }
     }
